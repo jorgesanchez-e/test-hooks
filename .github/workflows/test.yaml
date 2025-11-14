@@ -1,7 +1,8 @@
-name: GitHub Actions Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+name: GitHub Actions Demo On PR
+run-name: ${{ github.actor }} is testing out GitHub Actions On PR run 🚀
 on:
-  push:
+  pull_request:
+    types: [opened, reopened]
 jobs:
   Explore-GitHub-Actions:
     runs-on: ubuntu-latest
@@ -26,4 +27,9 @@ jobs:
           echo "La tag que activó el workflow es: ${{ github.ref_name }}"
       - name: Imprimir nombre de la tag (con bash)
         run: |
-          echo "Nombre de la tag: $(echo $GITHUB_REF | cut -d '/' -f 3)"      
+          echo "Nombre de la tag: $(echo $GITHUB_REF | cut -d '/' -f 3)"
+      - name: Mostrar información del PR
+        run: |
+          echo "El ID del PR es: ${{ github.event.pull_request.number }}"
+          echo "El título del PR es: ${{ github.event.pull_request.title }}"
+          echo "El autor del PR es: ${{ github.event.pull_request.user.login }}"
