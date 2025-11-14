@@ -8,7 +8,17 @@ on:
 jobs:
   Explore-GitHub-Actions:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, freebsd, darwin]
+        goarch: [amd64, arm64]    
     steps:
+      - uses: actions/checkout@v4 # Checks out your repository under $GITHUB_WORKSPACE
+      - name: Set up Go
+        uses: actions/setup-go@v5 # Uses the setup-go action
+        with:
+          go-version: '1.25' 
+          cache: true
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
       - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
@@ -32,6 +42,19 @@ jobs:
           echo "Nombre de la tag: $(echo $GITHUB_REF | cut -d '/' -f 3)"
       - name: Setting variables to execute the build.
         run: |
-          echo "APP_NAME=$(echo $GITHUB_REF | cut -d '/' -f 3)"
-          echo "APP_VERSION=$(echo $GITHUB_REF | cut -d '/' -f 4)"
-  
+          echo "APP_NAME=$(echo $GITHUB_REF | cut -d '/' -f 3)" >> $GITHUB_ENV
+          echo "APP_VERSION=$(echo $GITHUB_REF | cut -d '/' -f 4)" >> $GITHUB_ENV
+
+      - name: building the packages.
+        run: | 
+          cd $GITHUB_WORKSPACE
+          echo "current value for goos: ${{ matrix.goos }}"
+          echo "current value for goarch: ${{ matrix.goarch }}"
+          export GOOS=${{ matrix.goos }}
+          export GOARCH=${{ matrix.goarch }}
+          export APPVERSION=${{ env.APP_VERSION }}
+          make -C ${{ env.APP_NAME }}/
+
+      - name: list packages.
+        run: | 
+          ls -la build/*
