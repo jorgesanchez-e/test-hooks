@@ -5,7 +5,7 @@ ROOT_DIR=`git rev-parse --show-toplevel`
 
 build: clean
 	mkdir -p build
-	GOOS=$(GOOS) GOARCH=$(GOARCH) APPNAME=$(APPNAME) ../scripts/build
+	GOOS=$(GOOS) GOARCH=$(GOARCH) APPNAME=$(APPNAME) APPVERSION=$(APPVERSION) ../scripts/build
 
 run: build
 	$(ROOT_DIR)/build/${APPNAME}
