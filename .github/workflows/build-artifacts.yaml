@@ -29,4 +29,8 @@ jobs:
           echo "La tag que activó el workflow es: ${{ github.ref_name }}"
       - name: Imprimir nombre de la tag (con bash)
         run: |
-          echo "Nombre de la tag: $(echo $GITHUB_REF | cut -d '/' -f 3)"      
+          echo "Nombre de la tag: $(echo $GITHUB_REF | cut -d '/' -f 3)"
+      - name: Setting variables to execute the build.
+        run: |
+          echo "APP_NAME=$(echo $GITHUB_REF | cut -d '/' -f 3)"
+          echo "APP_VERSION="$(echo $GITHUB_REF | cut -d '/' -f 4)"
