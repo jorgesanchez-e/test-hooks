@@ -35,5 +35,5 @@ fi
 export CGO_ENABLED=0
 
 echo "Go building app"
-go build -o ${ROOT_DIR}/build/${APPNAME}-${APPVERSION} cmd/${APPNAME}/main.go
+go build -o ${ROOT_DIR}/build/${APPNAME}-${APPVERSION}.${GOOS}-${GOARCH} cmd/${APPNAME}/main.go
 echo "Successfully built, exiting build script"

@@ -1,37 +1,97 @@
-name: GitHub Actions Demo On TAGS
-run-name: ${{ github.actor }} is testing out GitHub Actions On TAGS 🚀
+name: Releasing a project
+run-name: Releasing 🚀
 on:
   push:
     tags:
-      - 'project1/v*'
+      - 'project1/v\d+\.\d+\.\d+'
       - 'project2/v*'
 jobs:
-  Explore-GitHub-Actions:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, freebsd]
+        goarch: [amd64, arm64]    
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
-        uses: actions/checkout@v5
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
-        run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
-      - run: echo "GITHUB_REF=${GITHUB_REF}"
-      - name: Imprimir  la tag
-        run: |
-          echo "La tag que activó el workflow es: ${{ github.ref }}"
-      - name: Imprimir nombre de la tag
-        run: |
-          echo "La tag que activó el workflow es: ${{ github.ref_name }}"
-      - name: Imprimir nombre de la tag (con bash)
-        run: |
-          echo "Nombre de la tag: $(echo $GITHUB_REF | cut -d '/' -f 3)"
+      - uses: actions/checkout@v4 # Checks out your repository under $GITHUB_WORKSPACE
+
+      - name: Set up Go
+        uses: actions/setup-go@v5 # Uses the setup-go action
+        with:
+          go-version: '1.25' 
+          cache: true
       - name: Setting variables to execute the build.
         run: |
-          echo "APP_NAME=$(echo $GITHUB_REF | cut -d '/' -f 3)"
-          echo "APP_VERSION=$(echo $GITHUB_REF | cut -d '/' -f 4)"
-  
+          echo "APP_NAME=$(echo $GITHUB_REF | cut -d '/' -f 3)" >> $GITHUB_ENV
+          echo "APP_VERSION=$(echo $GITHUB_REF | cut -d '/' -f 4)" >> $GITHUB_ENV
+
+      - name: building the packages.
+        run: | 
+          cd $GITHUB_WORKSPACE
+          echo "current value for goos: ${{ matrix.goos }}"
+          echo "current value for goarch: ${{ matrix.goarch }}"
+          export GOOS=${{ matrix.goos }}
+          export GOARCH=${{ matrix.goarch }}
+          export APPVERSION=${{ env.APP_VERSION }}
+          make -C ${{ env.APP_NAME }}/
+
+      - name: Changing permissions.
+        run: | 
+          chmod 755 build/*
+
+      - name: Uploading artifact.
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: build/${{ env.APP_NAME }}-${{ env.APP_VERSION }}.${{ matrix.goos }}-${{ matrix.goarch }}
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.set-upload-url.outputs.upload_url }}
+    steps:
+      - name: Setting variables.
+        run: |
+          echo "APP_NAME=$(echo $GITHUB_REF | cut -d '/' -f 3)" >> $GITHUB_ENV
+          echo "APP_VERSION=$(echo $GITHUB_REF | cut -d '/' -f 4)" >> $GITHUB_ENV
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ env.APP_NAME }}/${{ env.APP_VERSION }}
+          release_name: ${{ env.APP_NAME }}/${{ env.APP_VERSION }}
+          draft: false
+          prerelease: false
+      - name: Set upload url
+        id: set-upload-url
+        run: echo "upload_url=${{ steps.create_release.outputs.upload_url }}" >> $GITHUB_OUTPUT
+
+  upload-assets:
+    needs: create-release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, freebsd]
+        goarch: [amd64, arm64]
+    steps:
+      - name: Setting variables.
+        run: |
+          echo "APP_NAME=$(echo $GITHUB_REF | cut -d '/' -f 3)" >> $GITHUB_ENV
+          echo "APP_VERSION=$(echo $GITHUB_REF | cut -d '/' -f 4)" >> $GITHUB_ENV
+      - uses: actions/download-artifact@v5
+        with:
+          name: "${{ env.APP_NAME }}-${{ env.APP_VERSION }}.${{ matrix.goos }}-${{ matrix.goarch }}"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./${{ env.APP_NAME }}-${{ env.APP_VERSION }}.${{ matrix.goos }}-${{ matrix.goarch }}
+          asset_name: ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.${{ matrix.goos }}-${{ matrix.goarch }}
+          asset_content_type: octet-stream
