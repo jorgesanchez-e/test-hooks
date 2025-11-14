@@ -33,4 +33,5 @@ jobs:
       - name: Setting variables to execute the build.
         run: |
           echo "APP_NAME=$(echo $GITHUB_REF | cut -d '/' -f 3)"
-          echo "APP_VERSION="$(echo $GITHUB_REF | cut -d '/' -f 4)"
+          echo "APP_VERSION=$(echo $GITHUB_REF | cut -d '/' -f 4)"
+  
